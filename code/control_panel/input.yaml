@@ -5,10 +5,13 @@ age_groups: 8
 simulated_days: 200
 first_wave:
   R0: 2.6
+  std: 1
+  num: 10
 second_wave:
   time: 100
   R0_ratio: 2.5
 seasonality: 0.25
+threads: 10
 # TODO: doc
 network_config_folder: ../input/hun_10000
 

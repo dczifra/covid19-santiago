@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from subprocess import Popen, STDOUT, PIPE
-
+from multiprocessing import Pool
 from logger import TBLogger
 
 def moving_average(a, n=7) :
@@ -19,7 +19,9 @@ def read_yaml(filename="input.yaml"):
         args = yaml.load(file, Loader=yaml.FullLoader)
     return args
 
-def run(c_args):
+def run(c_args, R0):
+    c_args["--R0"]=R0
+    c_args["--out"]=c_args["--out"]+f"R0={R0}"
     str_args = [str(item) for pair in c_args.items() for item in pair]
     p = Popen([ "../bin/main"] + str_args,
           stdout=PIPE, stdin=PIPE, stderr=STDOUT, bufsize=1, universal_newlines=True)
@@ -114,17 +116,27 @@ if __name__ == "__main__":
     if(not  os.path.exists(f"log/{args['sim_id']}")):
         os.mkdir(f"log/{args['sim_id']}")
     # === Run simulation ===
-    c_args = {
-        "--out": f"log/{args['sim_id']}/sim.csv",
-        "--config": args['network_config_folder'],
-        "--maxT": args['simulated_days'],
-        "--R0": args['first_wave']['R0'],
-        "--second_ratio": args['second_wave']['R0_ratio'],
-        "--second_wave": args['second_wave']['time'],
-        "--c": args['seasonality'],
-    }
     if(options.sim):
-        run(c_args)
+        c_args = {
+            "--out": f"log/{args['sim_id']}/",
+            "--config": args['network_config_folder'],
+            "--maxT": args['simulated_days'],
+            "--second_ratio": args['second_wave']['R0_ratio'],
+            "--second_wave": args['second_wave']['time'],
+            "--c": args['seasonality'],
+        }
+
+        distribution = np.random.normal(
+            loc = args['first_wave']['R0'],
+            scale = args['first_wave']['std'],
+            size = args['first_wave']['num'])
+        
+        print(distribution)
+        pool = Pool(processes=args["threads"])
+        for R0 in distribution:
+            pool.apply_async(run, args=[c_args, R0])
+        pool.close()
+        pool.join()
         print('[main] Simulation ended')
     else:
         print('[main] Simulations skiped')
