@@ -10,3 +10,4 @@ code/output/
 code/input
 *__pycache__
 code/build
+code/control_panel/log
