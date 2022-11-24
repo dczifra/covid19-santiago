@@ -9,10 +9,7 @@ from subprocess import Popen, STDOUT, PIPE
 from multiprocessing import Pool
 from logger import TBLogger
 
-def moving_average(a, n=7) :
-    ret = np.cumsum(a, dtype=float)
-    ret[n:] = ret[n:] - ret[:-n]
-    return ret[n - 1:] / n
+from losses import get_county_loss, get_global_loss
 
 def read_yaml(filename="input.yaml"):
     with open(filename) as file:
@@ -27,7 +24,7 @@ def run(c_args, R0):
           stdout=PIPE, stdin=PIPE, stderr=STDOUT, bufsize=1, universal_newlines=True)
     p.communicate()
 
-def get_inf_curve(df, death_rate, K):
+def get_inf_curve(df, K, death_rate):
     # Works for only 2 I compartment
     # TODO: make it tiny
     inf_cols = [c for c in df.columns if c[0:2]=='I_']
@@ -49,7 +46,7 @@ def get_inf_curve(df, death_rate, K):
     # Aggregate over cities
     return np.sum(I*death_rate, axis=1)+np.sum(I2*death_rate, axis=1), Is.sum(axis=1), Is2.sum(axis=1)
 
-def aggregate_county(pop_file, df, K):
+def aggregate_county(df, K, pop_file):
     # Get city indexes of county
     with open(pop_file) as file:
         rows = []
@@ -67,7 +64,7 @@ def aggregate_county(pop_file, df, K):
         charts.append((county, chart))
     
     df = pd.DataFrame({county:chart for county,chart in charts})
-    df.to_csv("log/{args['sim_id']}/county.csv")
+    #df.to_csv(f"log/{args['sim_id']}/county.csv")
     return network_size, charts
 
 def aggregate_age(df, K, network_size):
@@ -79,7 +76,7 @@ def aggregate_age(df, K, network_size):
         charts.append(chart)
             
     df = pd.DataFrame({str(age):charts[age] for age in range(K)})
-    df.to_csv("log/{args['sim_id']}/ages.csv")
+    #df.to_csv(f"log/{args['sim_id']}/ages.csv")
 
 
 def aggregate_all(df, K, network_size):
@@ -88,6 +85,28 @@ def aggregate_all(df, K, network_size):
             [f"I2_{city}_{age}" for city in range(network_size) for age in range(K)]
     chart = df[infs].agg(sum, axis=1)
 
+def get_optimal_shift(county_data, c_charts):
+    sim_aggregated = np.sum([chart for label,chart in c_charts], axis=0)
+    losses = []
+    for i in range(80):
+        # Compute shift
+        shifted_GT = county_data.iloc[154-i:154+args['simulated_days']-i]
+
+        # Normalize
+        equal_ratio = np.sum(shifted_GT["Összesen"])/np.sum(sim_aggregated)
+
+        # Get loss components
+        county_loss = get_county_loss(shifted_GT, c_charts, equal_ratio)
+        global_loss = get_global_loss(shifted_GT["Összesen"].to_numpy(), sim_aggregated, equal_ratio)
+
+        # Compute final loss
+        r = args["loss"]["global_rate"]
+        loss = (1-r)*county_loss + r*global_loss
+        losses.append((loss, equal_ratio, i))
+
+    ind_min = np.argmin(losses)
+    return losses[ind_min]
+
 if __name__ == "__main__":
     ########################
     #         ARGS         #
@@ -95,7 +114,7 @@ if __name__ == "__main__":
     # === Script Options ===
     parser = argparse.ArgumentParser(description='Process some integers.')
     parser.add_argument('--yaml', dest='yaml', default="input.yaml", help='Input yaml file')
-    parser.add_argument('--nosim', dest='sim', action='store_false',default=True, help='Do simulation, or use already simulated]')
+    parser.add_argument('--sim', dest='sim', action='store_true',default=False, help='Do simulation, or use already simulated')
     parser.add_argument('--args', dest='show_args', action='store_true',default=False, help='Shows args from .yaml')
     options = parser.parse_args()
 
@@ -144,52 +163,47 @@ if __name__ == "__main__":
     ########################
     #       LOG/SIM        #
     ########################
-    # === Read simulation data ===
-    df = pd.read_csv(f"log/{args['sim_id']}/sim.csv")
-    pop_file = f"{args['network_config_folder']}/populations_KSH.json"
-
-    # LOG: Deaths
-    deaths, I, I2 = get_inf_curve(df, args['death_rate'], args['age_groups'])
-
-    # LOG: County infections
-    network_size, c_charts = aggregate_county(pop_file, df, args['age_groups'])
+    pop_file = f"{args['network_config_folder']}/populations_KSH.json" # TODO ==> read only once
+    county_data = pd.read_csv("log/ground_truth_county.csv")
     
-    # LOG: Age groups
-    aggregate_age(df, args['age_groups'], network_size)
-    
-    ########################
-    #       LOG/LOSS       #
-    ########################
-    #city_data = pd.read_csv("../hun_codes/data/HU_settlement_tempinfo.csv")
-    home = "../.."
-    county_data = pd.read_csv(f"{home}/code/hun_codes/data/halalozas_megyenkent.csv").fillna(method='ffill')
-    county_data=county_data.rename(lambda l: l if l!="Budapest" else "főváros")[county_data.columns[1:]].diff(axis=0).dropna()
-    county_data[county_data<0]=0
-    county_data = county_data.rolling(7).mean().dropna()
+    losses_R0 = []
+    agg_charts = []
+    for file in os.listdir(f"log/{args['sim_id']}"):
+        # === Read simulation data ===
+        #df = pd.read_csv(f"log/2/R0=2.7617185266303697")
+        df = pd.read_csv(f"log/{args['sim_id']}/{file}")
+        R0 = float(file.split('=')[1])
+        print(f"R0={R0}")
 
-    # Megyénkénti log
-    losses = []
-    for i in range(80):
-        equal_ratio = np.sum([chart for label,chart in c_charts])/np.sum(county_data.iloc[154-i:154+args['simulated_days']-i].fillna(0).values)
-        c_loss_sum = 0
-        for county,chart in c_charts:
-            if(county == "főváros"): county="Budapest"
-            if(county not in county_data.columns):
-                print(county)
-            else:
-                g_truth = equal_ratio*county_data[county].to_numpy()[154-i:154+args['simulated_days']-i]
-                loss = np.sum(np.abs(g_truth-chart)**1)
-                c_loss_sum += loss/(args['simulated_days'])
-        #print(c_loss_sum/(19))
-        losses.append((c_loss_sum, equal_ratio))
-    
-    ind_min = np.argmin(losses)
-    shift,equal_ratio =losses[ind_min]
-    print(shift, equal_ratio)
+        # LOG: Deaths
+        #deaths, I, I2 = get_inf_curve(df, args['age_groups'], args['death_rate'])
+        
+        # LOG: Age groups
+        #aggregate_age(df, args['age_groups'], network_size)
 
-    #county_data.reindex()...
-    county_data.to_csv(f"log/{args['sim_id']}/country_loss.csv")
-    
+        # LOG: County infections
+        network_size, c_charts = aggregate_county(df, args['age_groups'], pop_file)
+
+        ########################
+        #       LOG/LOSS       #
+        ########################
+        #city_data = pd.read_csv("../hun_codes/data/HU_settlement_tempinfo.csv")
+
+        sim_aggregated = np.sum([chart for label,chart in c_charts], axis=0)
+
+        loss,equal_ratio,shift = get_optimal_shift(county_data, c_charts)
+        print(loss, equal_ratio, shift)
+        losses_R0.append((loss, R0, shift))
+
+        agg_charts.append((R0, equal_ratio*sim_aggregated))
+
+    loss,R0,shift = min(losses_R0)
+    print(f"Minimal loss: {loss} [R0 = {R0}]")
+
+    # Log for all sims
+    g_truth = county_data["Összesen"].to_numpy()[154-shift:154-shift+args['simulated_days']]
+    df = pd.DataFrame({str(R0):data for R0,data in [("Ground truth",g_truth)]+list(sorted(agg_charts))})
+    df.to_csv(f"log/helper/{args['sim_id']}_agg.csv")
 
 
     #print(county_data[154:][["Budapest", "Dátum"]])

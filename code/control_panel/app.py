@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 
 import plotly.express as px
@@ -7,6 +8,9 @@ import dash
 import json
 import dash_core_components as dcc
 import dash_html_components as html
+from dash.dependencies import Input, Output
+
+act_sim_folder = "sim_3"
 
 # === APP ===
 mathjax = 'https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.4/MathJax.js?config=TeX-MML-AM_CHTML'
@@ -79,6 +83,20 @@ def ages_fig():
         value_names = ["Ages", "Age groups"],
         xy_labels = ["Days", "Deaths"])
 
+# Sims
+#@app.callback(
+#    Output('sims-fig', 'figure'),
+#    [Input('update-button', 'n_clicks')])
+@app.callback(
+    Output('sims-fig', 'figure'),
+    [Input('class-dropdown', 'value')])
+def sims_fig(value):
+    return general_plot(
+        filename = f"log/helper/{value}_agg.csv",
+        title = r'Simulations',
+        value_names = ["Dayly infection", "Simulations"],
+        xy_labels = ["Days", "Infections"])
+
 # County
 def countys_fig():
     return general_plot(
@@ -87,13 +105,22 @@ def countys_fig():
         value_names = ["Conty", "County"],
         xy_labels = ["Days", "Deaths"])
 
+def get_folders():
+    folders = []
+    for folder in os.listdir("log"):
+        if(folder[:4] == "sim_"):
+            folders.append(folder)
+    return folders
+
 # === Helper functions ===
 def create_dropdown_options(series):
     options = [{'label': i, 'value': i} for i in series]
     return options
+
 def create_dropdown_value(series):
     value = series
     return value
+
 def create_slider_marks(values):
     marks = {i: {'label': str(i)} for i in values}
     return marks
@@ -106,9 +133,10 @@ app.layout = html.Div(children=[
         html.P('Rényi Network Epidemic Research Group'),
         html.Img(src="assets/covid19.png"),
         html.Label("Simulations", className='dropdown-labels'),
-        dcc.Dropdown(multi=True, className='dropdown', id='class-dropdown',
-                     options=create_dropdown_options(['Sim1', 'Sim2']),
-                     value=create_dropdown_value(['Sim1', 'Sim2'])),
+        dcc.Dropdown(multi=False, className='dropdown', id='class-dropdown',
+                     options=create_dropdown_options(get_folders()),
+                     value=act_sim_folder),
+        html.Div(id='drop-info'),
         html.Button("Update", id="update-button"),
         html.Div(children=[
             html.H2('Parameters', className='dropdown-labels'),
@@ -145,6 +173,9 @@ app.layout = html.Div(children=[
             
             dcc.Graph(figure=ages_fig(), style={'width': '50%', 'height': '500px', 'display': 'inline-block'}),
             dcc.Graph(figure=countys_fig(), style={'width': '50%', 'height': '500px', 'display': 'inline-block'}),
+            #dcc.Graph(id='sims-fig', figure=sims_fig("sims_3"), style={'width': '50%', 'height': '500px'}),
+            dcc.Graph(id="sims-fig"),
+            #html.Div(id="sims-fig",children=sims_fig())
         ], id="visualization")
     ], id="right-container")
 ], id='container')
