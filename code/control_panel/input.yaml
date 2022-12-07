@@ -1,15 +1,17 @@
 ---
 # Simulation parameters
-sim_id: sim_first_wave
+sim_id: sim_second_04
 age_groups: 8
-simulated_days: 150
+simulated_days: 300
 first_wave:
-  R0: 2.6
-  std: 0.5
-  num: 10
+  R0: 2.3
+  std: 0.0
+  num: 1
 second_wave:
-  time: 150
-  R0_ratio: 2.5
+  time: 120
+  R1: 6.9
+  std: 0.125
+  num: 15
 seasonality: 0.25
 threads: 50
 # TODO: doc

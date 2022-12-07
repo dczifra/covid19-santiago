@@ -1,8 +1,8 @@
 #include <iostream>
 #include <vector>
 #include <cstdlib>
-#include "sampler.h"
-#include "Parser.h"
+#include "include/sampler.h"
+#include "include/Parser.h"
 #include <math.h>
 
 using namespace std;
@@ -13,12 +13,12 @@ struct Args{
     std::string contact_mtx = "";
     int moving_t = -1;
     double R0 = 2.6;
+    double R1 = 2.6;
     double r1 = 1.0;
     double r2 = 1.0;
     unsigned int maxT = 175;
     double c = 0.0;
     int second_wave = -1;
-    double second_ratio = 1.0;
 };
 
 void read_args(int argc, char* argv[], Args& args){
@@ -32,12 +32,12 @@ void read_args(int argc, char* argv[], Args& args){
         else if(act_param=="--contact_mtx") args.contact_mtx = argv[++i];
         else if(act_param=="--moving_t") args.moving_t = std::stoi(argv[++i]);
         else if(act_param=="--R0") args.R0 = std::stod(argv[++i]);
+        else if(act_param=="--R1") args.R1 = std::stod(argv[++i]);
         else if(act_param=="--r1") args.r1 = std::stod(argv[++i]);
         else if(act_param=="--r2") args.r2 = std::stod(argv[++i]);
         else if(act_param=="--maxT") args.maxT = std::stoi(argv[++i]);
         else if(act_param=="--c") args.c = std::stod(argv[++i]);
         else if(act_param=="--second_wave") args.second_wave = std::stoi(argv[++i]);
-        else if(act_param=="--second_ratio") args.second_ratio = std::stod(argv[++i]);
         //else if(act_param=="--verbose"){ args.verbose=true;++i;}
     }
 }
@@ -200,7 +200,9 @@ int main(int argc, char *argv[])
     double eps = 1 / 4.0;
     double tau = 3.0;
     double R0 = args.R0;
+    double R1 = args.R1;
     double beta = get_beta(R0, mu, 16.204308331681283);
+    double beta2 = get_beta(R1, mu, 16.204308331681283);
     vector<double> betas;
 
 
@@ -307,7 +309,7 @@ int main(int argc, char *argv[])
         }
 
         double act_beta = beta*seasonality(args.c, t);
-        double act_beta2 = t >= T0+args.second_wave ? act_beta*args.second_ratio : act_beta;
+        double act_beta2 = t >= T0+args.second_wave ? beta2*seasonality(args.c, t) : act_beta;
         for (int i = 0; i < Npop; i++){
             for (int k = 0; k < K; k++){
                 // S -> L

@@ -2,6 +2,7 @@ import os
 import json
 import yaml
 import argparse
+import itertools
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -16,9 +17,12 @@ def read_yaml(filename="input.yaml"):
         args = yaml.load(file, Loader=yaml.FullLoader)
     return args
 
-def run(c_args, R0):
+def run(c_args, R0, R1, shift):
     c_args["--R0"]=R0
-    c_args["--out"]=c_args["--out"]+f"R0={R0}"
+    c_args["--R1"]=R1
+    c_args["--second_wave"] = shift
+    c_args["--out"]=c_args["--out"]+f"R0={R0}_R1={R1}_shift={shift}"
+
     str_args = [str(item) for pair in c_args.items() for item in pair]
     p = Popen([ "../bin/main"] + str_args,
           stdout=PIPE, stdin=PIPE, stderr=STDOUT, bufsize=1, universal_newlines=True)
@@ -107,6 +111,9 @@ def get_optimal_shift(county_data, c_charts):
     ind_min = np.argmin(losses)
     return losses[ind_min]
 
+def get_str(arr):
+    return "_".join([str(a) for a in arr])
+
 if __name__ == "__main__":
     ########################
     #         ARGS         #
@@ -140,20 +147,28 @@ if __name__ == "__main__":
             "--out": f"log/{args['sim_id']}/",
             "--config": args['network_config_folder'],
             "--maxT": args['simulated_days'],
-            "--second_ratio": args['second_wave']['R0_ratio'],
-            "--second_wave": args['second_wave']['time'],
             "--c": args['seasonality'],
         }
 
-        distribution = np.random.normal(
-            loc = args['first_wave']['R0'],
-            scale = args['first_wave']['std'],
-            size = args['first_wave']['num'])
+        R0 = args['first_wave']['R0']
+        R0_std = args['first_wave']['std']
+        R0_num = args['first_wave']['num']
+        R0_distribution = np.linspace(R0-R0_std, R0+R0_std, R0_num)
+
+        R1 = args['second_wave']['R1']
+        R1_std = args['second_wave']['std']
+        R1_num = args['second_wave']['num']
+        R1_distribution = np.linspace(R1-R1_std, R1+R1_std, R1_num)
         
-        print(distribution)
+        shift = args['second_wave']['time']
+        shift_std = 0
+        shift_num = 1
+        shift_distribution = np.linspace(shift-shift_std, shift+shift_std, shift_num, dtype=int)
+
+        print(R0_distribution, R1_distribution, shift_distribution)
         pool = Pool(processes=args["threads"])
-        for R0 in distribution:
-            pool.apply_async(run, args=[c_args, R0])
+        for R0,R1,shift in itertools.product(R0_distribution, R1_distribution, shift_distribution):
+            pool.apply_async(run, args=[c_args, R0, R1, shift])
         pool.close()
         pool.join()
         print('[main] Simulation ended')
@@ -168,12 +183,16 @@ if __name__ == "__main__":
     
     losses_R0 = []
     agg_charts = []
+    param_distribution = []
     for file in os.listdir(f"log/{args['sim_id']}"):
         # === Read simulation data ===
         #df = pd.read_csv(f"log/2/R0=2.7617185266303697")
         df = pd.read_csv(f"log/{args['sim_id']}/{file}")
-        R0 = float(file.split('=')[1])
-        print(f"R0={R0}")
+        R0, R1, R1_shift = file.split('_')
+        R0 = float(R0.split('=')[1])
+        R1 = float(R1.split('=')[1])
+        R1_shift = float(R1_shift.split('=')[1])
+        #print(R0, R1, R1_shift)
 
         # LOG: Deaths
         #deaths, I, I2 = get_inf_curve(df, args['age_groups'], args['death_rate'])
@@ -191,18 +210,20 @@ if __name__ == "__main__":
 
         sim_aggregated = np.sum([chart for label,chart in c_charts], axis=0)
 
-        loss,equal_ratio,shift = get_optimal_shift(county_data, c_charts)
+        loss,equal_ratio, shift = get_optimal_shift(county_data, c_charts)
         print(loss, equal_ratio, shift)
-        losses_R0.append((loss, R0, shift))
+        losses_R0.append((loss, R0, R1, R1_shift, shift))
 
-        agg_charts.append((R0, equal_ratio*sim_aggregated))
+        agg_charts.append(((R0, R1, R1_shift), equal_ratio*sim_aggregated))
+        param_distribution.append({"R0":R0, "R1":R1, "R1_shift":R1_shift, "loss":loss, "equal_ratio":equal_ratio, "shift":shift})
 
-    loss,R0,shift = min(losses_R0)
+    loss, R0, R1, R1_shift, shift= min(losses_R0)
     print(f"Minimal loss: {loss} [R0 = {R0}]")
 
     # Log for all sims
     g_truth = county_data["Összesen"].to_numpy()[154-shift:154-shift+args['simulated_days']]
-    df = pd.DataFrame({str(R0):data for R0,data in [("Ground truth",g_truth)]+list(sorted(agg_charts))})
+    d_truth = { }
+    df = pd.DataFrame(dict([("Ground truth",g_truth)]+ [(get_str(params),data) for params,data in sorted(agg_charts)]))
     df.to_csv(f"log/helper/{args['sim_id']}_agg.csv")
 
 
