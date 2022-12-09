@@ -10,8 +10,6 @@ import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output
 
-act_sim_folder = "sim_3"
-
 # === APP ===
 mathjax = 'https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.4/MathJax.js?config=TeX-MML-AM_CHTML'
 external_scripts = [
@@ -20,8 +18,7 @@ external_scripts = [
 app = dash.Dash(__name__, external_scripts=external_scripts)
 
 # === Figures ===
-def general_plot(filename, title, value_names, xy_labels):
-    df = pd.read_csv(filename, index_col=0)
+def general_plot(df, title, value_names, xy_labels):
     fig = px.line(df, 
         x=df.index, y=df.columns,
         labels={"value": value_names[0], "variable": value_names[1]},
@@ -77,30 +74,155 @@ def plot_map2():
 
 # Age
 def ages_fig():
+    df = pd.read_csv("log/ages.csv", index_col=0)
     return general_plot(
-        filename = "log/ages.csv",
+        df,
         title = r'Deathes in each age group',
         value_names = ["Ages", "Age groups"],
         xy_labels = ["Days", "Deaths"])
 
+def loss_restrict(df, sim_name, th):
+    df_dist = pd.read_csv(f"log/helper/{sim_name}_distribution.csv", index_col=0, dtype=str)
+    params_best = [row[["R0", "R1", "R1_shift"]] for index,row in df_dist.iterrows() if float(row["loss"])<float(th)]
+
+    df = df[["_".join([str(r) for r in row]) for row in params_best]+["Ground truth"]]
+    return df
+
 # Sims
-#@app.callback(
-#    Output('sims-fig', 'figure'),
-#    [Input('update-button', 'n_clicks')])
 @app.callback(
     Output('sims-fig', 'figure'),
-    [Input('class-dropdown', 'value')])
-def sims_fig(value):
+    [Input('class-dropdown', 'value'), Input(component_id='loss_th', component_property='value')])
+def sims_fig(sim_name, th):
+    df = pd.read_csv(f"log/helper/{sim_name}_agg.csv", index_col=0)
+    df = loss_restrict(df, sim_name, th)
+    
     return general_plot(
-        filename = f"log/helper/{value}_agg.csv",
-        title = r'Simulations',
+        df,
+        title = f'Simulations {th}',
         value_names = ["Dayly infection", "Simulations"],
         xy_labels = ["Days", "Infections"])
 
+def param_loss(param, sim_name, th):
+    df = pd.read_csv(f"log/helper/{sim_name}_distribution.csv", index_col=0)
+    df = df[df["loss"]<float(th)]
+
+    fig = px.scatter(df, 
+        x=df[param], y=df["loss"],
+        title=f"{param} - Loss function")
+    return fig
+
+def param_histogram(param, sim_name, th):
+    df = pd.read_csv("log/helper/sim_second_06_distribution.csv", index_col=0)
+    #df = loss_restrict(df, sim_name, th)
+    df = df[df["loss"]<float(th)]
+
+    fig = px.histogram(df, 
+        x=df[param],
+        title=f"Best {param} - distribution")
+
+    return fig
+
+def violin_plot(key, sim_name, th):
+    df = pd.read_csv(f"log/helper/{sim_name}_distribution.csv", index_col=0)
+    df = df[df["loss"]<float(th)]
+
+    fig = go.Figure()
+
+    for v in df[key].unique():
+        #go.Violin
+        fig.add_trace(go.Violin(x=df[key][df[key]==v].astype(str), box_visible=True, y=df['loss'][df[key]==v], points="all", name=v,
+                                meanline_visible=True, opacity=0.6, x0=str(v),
+                                ))
+    
+
+    fig.update_layout(
+        updatemenus=[
+            dict(
+                type = "buttons",
+                direction = "left",
+                buttons=list([
+                    dict(
+                        args=["type", "box"],
+                        label="Box",
+                        method="restyle"
+                    ),
+                    dict(
+                        args=[{"type":"violin", "box":True, "box_visible":True}],
+                        #args=[{"type": "violin", "box_visible":False, "box":False, "opacity" : 1.0}],
+                        label="Violin",
+                        method="restyle"
+                    )
+                ]),
+                pad={"r": 10, "t": 10},
+                showactive=True,
+                x=0.0,
+                xanchor="left",
+                y=1.1,
+                yanchor="top"
+            ),
+        ]
+    )
+    fig.update_layout(
+        title = {
+            'text':f"Distribution of {key}",
+            'y':0.9,
+            'x':0.5,
+            'xanchor':'center',
+            'yanchor': 'top',
+        },
+        showlegend=False,
+    )
+    return fig
+
+@app.callback(
+    Output('R0-violin-fig', 'figure'),
+    [Input('class-dropdown', 'value'), Input(component_id='dist_th', component_property='value')])
+def violin_R0(sim_name, th):
+    return violin_plot("R0", sim_name, th)
+
+@app.callback(
+    Output('R1-violin-fig', 'figure'),
+    [Input('class-dropdown', 'value'), Input(component_id='dist_th', component_property='value')])
+def violin_R1(sim_name, th):
+    return violin_plot("R1", sim_name, th)
+
+@app.callback(
+    Output('R1_shift-violin-fig', 'figure'),
+    [Input('class-dropdown', 'value'), Input(component_id='dist_th', component_property='value')])
+def violin_R1(sim_name, th):
+    return violin_plot("R1_shift", sim_name, th)
+
+# === Histogram ===
+@app.callback(
+    Output('R0-hist-fig', 'figure'),
+    [Input('class-dropdown', 'value'), Input(component_id='loss_th', component_property='value')])
+def hist_R0(sim_name, th):
+    return param_histogram("R0", sim_name, th)
+
+@app.callback(
+    Output('R1-hist-fig', 'figure'),
+    [Input('class-dropdown', 'value'), Input(component_id='loss_th', component_property='value')])
+def hist_R1(sim_name, th):
+    return param_histogram("R1", sim_name, th)
+
+
+@app.callback(
+    Output('EqualRatio-hist-fig', 'figure'),
+    [Input('class-dropdown', 'value'), Input(component_id='loss_th', component_property='value')])
+def hist_equalRatio(sim_name, th):
+    return param_histogram("equal_ratio", sim_name, th)
+
+@app.callback(
+    Output('R1Shift-hist-fig', 'figure'),
+    [Input('class-dropdown', 'value'), Input(component_id='loss_th', component_property='value')])
+def hist_R1Shift(sim_name, th):
+    return param_histogram("R1_shift", sim_name, th)
+
 # County
 def countys_fig():
+    df = pd.read_csv("log/county.csv", index_col=0)
     return general_plot(
-        filename = "log/county.csv",
+        df,
         title = r'Deathes in each county',
         value_names = ["Conty", "County"],
         xy_labels = ["Days", "Deaths"])
@@ -130,36 +252,27 @@ app.layout = html.Div(children=[
     # Left: control panel
     html.Div(children = [
         html.H1(children='Metapop Simulations'),
-        html.P('Rényi Network Epidemic Research Group'),
+        html.P('Rényi Network Epidemic Research Group',  style={"text-align":"center"}),
         html.Img(src="assets/covid19.png"),
         html.Label("Simulations", className='dropdown-labels'),
         dcc.Dropdown(multi=False, className='dropdown', id='class-dropdown',
                      options=create_dropdown_options(get_folders()),
-                     value=act_sim_folder),
+                     value=get_folders()[0]),
         html.Div(id='drop-info'),
         html.Button("Update", id="update-button"),
         html.Div(children=[
             html.H2('Parameters', className='dropdown-labels'),
             
-            
-            html.Label("R0", className='dropdown-labels'),
-            dcc.Input(id="R0", type="number", value=2.6, style={"text-align":"right", 'width': '9vh', 'height': '13px', "float":"right"}),
-            html.Br(),
-            
-            html.Label("Second wave start", className='dropdown-labels'),
-            dcc.Input(id="second_wave", type="number", value=100, style={"text-align":"right", 'width': '9vh', 'height': '13px', "float":"right"}),
+            html.Div([
+                html.Label("Distribution threshold", className='dropdown-labels'),
+                dcc.Input(id='dist_th', value='5000', type='number', style={"text-align":"right", 'width': '9vh', 'height': '13px', "float":"right"})
+            ]),
             html.Br(),
 
-            html.Label("Second wave ratio", className='dropdown-labels'),
-            dcc.Input(id="second_ratio", type="number", value=3.0, style={"text-align":"right", 'width': '9vh', 'height': '13px', "float":"right"}),
-            html.Br(),
-            
-            html.Label("Seasonality", className='dropdown-labels'),
-            dcc.Input(id="sesonality", type="number", value=0.25, style={"text-align":"right", 'width': '9vh', 'height': '13px', "float":"right"}),
-            html.Br(),
-            
-            html.Label("Number of age groups", className='dropdown-labels'),
-            dcc.Input(id="age_groups", type="number", value=8, style={"text-align":"right", 'width': '9vh', 'height': '13px', "float":"right"}),
+            html.Div([
+                html.Label("Loss threshold", className='dropdown-labels'),
+                dcc.Input(id='loss_th', value='600', type='number', style={"text-align":"right", 'width': '9vh', 'height': '13px', "float":"right"})
+            ]),
             html.Br(),
 
         ], style={'width': '100%', 'height': '400px'})
@@ -168,15 +281,36 @@ app.layout = html.Div(children=[
     # Right: plots
     html.Div(children=[
         html.Div(children=[
-            dcc.Graph(figure=plot_map(), style={'width': '100%'}),
+            #dcc.Graph(figure=plot_map(), style={'width': '100%'}),
             #dcc.Graph(figure=plot_map(), style={'width': '100%', 'height': '500px', 'display': 'inline-block'}),
             
-            dcc.Graph(figure=ages_fig(), style={'width': '50%', 'height': '500px', 'display': 'inline-block'}),
-            dcc.Graph(figure=countys_fig(), style={'width': '50%', 'height': '500px', 'display': 'inline-block'}),
-            #dcc.Graph(id='sims-fig', figure=sims_fig("sims_3"), style={'width': '50%', 'height': '500px'}),
+            #dcc.Graph(figure=ages_fig(), style={'width': '50%', 'height': '500px', 'display': 'inline-block'}),
+            #dcc.Graph(figure=countys_fig(), style={'width': '50%', 'height': '500px', 'display': 'inline-block'}),
+            
+            # === Timeline ===
             dcc.Graph(id="sims-fig"),
-            #html.Div(id="sims-fig",children=sims_fig())
+
+            # === Distributions ===
+            # TODO: histogram
+            dcc.Graph(id="R0-violin-fig", style={'width': '33%', 'height': '500px', 'display': 'inline-block'}),
+            dcc.Graph(id="R1-violin-fig", style={'width': '33%', 'height': '500px', 'display': 'inline-block'}),
+            dcc.Graph(id="R1_shift-violin-fig", style={'width': '33%', 'height': '500px', 'display': 'inline-block'}),
+
+            dcc.Graph(id="R0-hist-fig", style={'width': '50%', 'height': '500px', 'display': 'inline-block'}),
+            dcc.Graph(id="R1-hist-fig",style={'width': '50%', 'height': '500px', 'display': 'inline-block'}),
+
+            dcc.Graph(id="R1Shift-hist-fig", style={'width': '50%', 'height': '500px', 'display': 'inline-block'}),
+            dcc.Graph(id="EqualRatio-hist-fig",style={'width': '50%', 'height': '500px', 'display': 'inline-block'})
         ], id="visualization")
     ], id="right-container")
 ], id='container')
 app.run_server(debug=True, use_reloader=True)  # Turn off reloader if inside Jupyter
+
+
+# TODO:
+#   * more thorough simulations
+#   * sliding map with update_layout/trace
+#   * left panel values bigger steps
+#   * outlook:
+#      -> Ground truth BOLD
+#      -> green left panel
