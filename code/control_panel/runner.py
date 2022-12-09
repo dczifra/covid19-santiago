@@ -161,8 +161,8 @@ if __name__ == "__main__":
         R1_distribution = np.linspace(R1-R1_std, R1+R1_std, R1_num)
         
         shift = args['second_wave']['time']
-        shift_std = 0
-        shift_num = 1
+        shift_std = 10
+        shift_num = 5
         shift_distribution = np.linspace(shift-shift_std, shift+shift_std, shift_num, dtype=int)
 
         print(R0_distribution, R1_distribution, shift_distribution)
@@ -226,6 +226,8 @@ if __name__ == "__main__":
     df = pd.DataFrame(dict([("Ground truth",g_truth)]+ [(get_str(params),data) for params,data in sorted(agg_charts)]))
     df.to_csv(f"log/helper/{args['sim_id']}_agg.csv")
 
+    df = pd.DataFrame(param_distribution)
+    df.to_csv(f"log/helper/{args['sim_id']}_distribution.csv")
 
     #print(county_data[154:][["Budapest", "Dátum"]])
     # TODO:
