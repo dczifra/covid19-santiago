@@ -266,8 +266,8 @@ def create_commuting(cities, place_id_dict, big_cities, district_pops, district_
     with open(f"../input/{out}/district_eigen/commuting_KSH.json", "w") as f:
         f.write(json.dumps({"N":M, "network":network_eigen}))
 
-    with open(f"../input/{out}/district_eigen_symm/commuting_KSH.json", "w") as f:
-        f.write(json.dumps({"N":M, "network":network_eigen_symm}))
+    #with open(f"../input/{out}/district_eigen_symm/commuting_KSH.json", "w") as f:
+    #    f.write(json.dumps({"N":M, "network":network_eigen_symm}))
 
 # === Create contats_home and contacts other ===
 import itertools
