@@ -150,20 +150,23 @@ if __name__ == "__main__":
             "--c": args['seasonality'],
         }
 
-        R0 = args['first_wave']['R0']
-        R0_std = args['first_wave']['std']
-        R0_num = args['first_wave']['num']
-        R0_distribution = np.linspace(R0-R0_std, R0+R0_std, R0_num)
+        R0 = args['first_wave']['R0']['val']
+        R0_std = args['first_wave']['R0']['std']
+        R0_num = args['first_wave']['R0']['num']
+        #R0_distribution = np.linspace(R0-R0_std, R0+R0_std, R0_num)
+        R0_distribution = np.random.uniform(R0-R0_std, R0+R0_std, R0_num)
 
-        R1 = args['second_wave']['R1']
-        R1_std = args['second_wave']['std']
-        R1_num = args['second_wave']['num']
-        R1_distribution = np.linspace(R1-R1_std, R1+R1_std, R1_num)
+        R1 = args['second_wave']['R1']['val']
+        R1_std = args['second_wave']['R1']['std']
+        R1_num = args['second_wave']['R1']['num']
+        #R1_distribution = np.linspace(R1-R1_std, R1+R1_std, R1_num)
+        R1_distribution = np.random.uniform(R1-R1_std, R1+R1_std, R1_num)
         
-        shift = args['second_wave']['time']
-        shift_std = 10
-        shift_num = 5
-        shift_distribution = np.linspace(shift-shift_std, shift+shift_std, shift_num, dtype=int)
+        shift = args['second_wave']['time']['val']
+        shift_std = args['second_wave']['time']['std']
+        shift_num = args['second_wave']['time']['num']
+        #shift_distribution = np.linspace(shift-shift_std, shift+shift_std, shift_num, dtype=int)
+        shift_distribution = np.random.randint(shift-shift_std, shift+shift_std, shift_num, dtype=int)
 
         print(R0_distribution, R1_distribution, shift_distribution)
         pool = Pool(processes=args["threads"])

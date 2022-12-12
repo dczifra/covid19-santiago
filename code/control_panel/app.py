@@ -112,7 +112,7 @@ def param_loss(param, sim_name, th):
     return fig
 
 def param_histogram(param, sim_name, th):
-    df = pd.read_csv("log/helper/sim_second_06_distribution.csv", index_col=0)
+    df = pd.read_csv(f"log/helper/{sim_name}_distribution.csv", index_col=0)
     #df = loss_restrict(df, sim_name, th)
     df = df[df["loss"]<float(th)]
 
