@@ -1,28 +1,39 @@
 ---
-# Simulation parameters
-sim_id: sim_second_02
-age_groups: 8
-simulated_days: 300
+# === Simulation parameters ===
+simulation:
+  # Name/ID of simulation
+  ID: sim_best_2
+  # Number of simulations
+  sim_num: 500
+  # Number of CPU cores
+  threads: 225
+  # Length of simulation
+  simulated_days: 300
+  # Distribution type:
+  #   * grid    : sample variables from linspace, and take Cartesian product
+  #   * uniform : sample variables uniformly random, and independently
+  distribution: "grid"
+
+# === Model parameters ===
 first_wave:
   R0:
-    val: 2.3
-    std: 0.1
-    num: 15
+    val: 2.25
+    std: 0.01
+    num: 5
 second_wave:
   time:
     val: 120
-    std: 10
-    num: 15
+    std: 3
+    num: 5
   R1:
-    val: 6.15
-    std: 0.3
-    num: 15
+    val: 5.85
+    std: 0.01
+    num: 5
+age_groups: 8
 seasonality: 0.25
-threads: 225
-# TODO: doc
 network_config_folder: ../input/hun_10000
 
-# Loss parameters
+# === Loss parameters ===
 loss:
   type: mse
   global_rate: 1.0

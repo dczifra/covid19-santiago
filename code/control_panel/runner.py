@@ -68,7 +68,7 @@ def aggregate_county(df, K, pop_file):
         charts.append((county, chart))
     
     df = pd.DataFrame({county:chart for county,chart in charts})
-    #df.to_csv(f"log/{args['sim_id']}/county.csv")
+    #df.to_csv(f"log/{args['simulation']['ID']}/county.csv")
     return network_size, charts
 
 def aggregate_age(df, K, network_size):
@@ -80,7 +80,7 @@ def aggregate_age(df, K, network_size):
         charts.append(chart)
             
     df = pd.DataFrame({str(age):charts[age] for age in range(K)})
-    #df.to_csv(f"log/{args['sim_id']}/ages.csv")
+    #df.to_csv(f"log/{args['simulation']['ID']}/ages.csv")
 
 
 def aggregate_all(df, K, network_size):
@@ -94,7 +94,7 @@ def get_optimal_shift(county_data, c_charts):
     losses = []
     for i in range(80):
         # Compute shift
-        shifted_GT = county_data.iloc[154-i:154+args['simulated_days']-i]
+        shifted_GT = county_data.iloc[154-i:154+args['simulation']['simulated_days']-i]
 
         # Normalize
         equal_ratio = np.sum(shifted_GT["Összesen"])/np.sum(sim_aggregated)
@@ -139,38 +139,49 @@ if __name__ == "__main__":
     ########################
     #      SIMULATION      #
     ########################
-    if(not  os.path.exists(f"log/{args['sim_id']}")):
-        os.mkdir(f"log/{args['sim_id']}")
+    if(not  os.path.exists(f"log/{args['simulation']['ID']}")):
+        os.mkdir(f"log/{args['simulation']['ID']}")
     # === Run simulation ===
     if(options.sim):
         c_args = {
-            "--out": f"log/{args['sim_id']}/",
+            "--out": f"log/{args['simulation']['ID']}/",
             "--config": args['network_config_folder'],
-            "--maxT": args['simulated_days'],
+            "--maxT": args['simulation']['simulated_days'],
             "--c": args['seasonality'],
         }
 
         R0 = args['first_wave']['R0']['val']
         R0_std = args['first_wave']['R0']['std']
         R0_num = args['first_wave']['R0']['num']
-        #R0_distribution = np.linspace(R0-R0_std, R0+R0_std, R0_num)
-        R0_distribution = np.random.uniform(R0-R0_std, R0+R0_std, R0_num)
 
         R1 = args['second_wave']['R1']['val']
         R1_std = args['second_wave']['R1']['std']
         R1_num = args['second_wave']['R1']['num']
-        #R1_distribution = np.linspace(R1-R1_std, R1+R1_std, R1_num)
-        R1_distribution = np.random.uniform(R1-R1_std, R1+R1_std, R1_num)
         
         shift = args['second_wave']['time']['val']
         shift_std = args['second_wave']['time']['std']
         shift_num = args['second_wave']['time']['num']
-        #shift_distribution = np.linspace(shift-shift_std, shift+shift_std, shift_num, dtype=int)
-        shift_distribution = np.random.randint(shift-shift_std, shift+shift_std, shift_num, dtype=int)
 
-        print(R0_distribution, R1_distribution, shift_distribution)
-        pool = Pool(processes=args["threads"])
-        for R0,R1,shift in itertools.product(R0_distribution, R1_distribution, shift_distribution):
+        if(args['simulation']['distribution'] == 'grid'):
+            R0_distribution = np.linspace(R0-R0_std, R0+R0_std, R0_num)
+            R1_distribution = np.linspace(R1-R1_std, R1+R1_std, R1_num)
+            shift_distribution = np.linspace(shift-shift_std, shift+shift_std, shift_num, dtype=int)
+            
+            param_distribution = itertools.product(R0_distribution, R1_distribution, shift_distribution)
+        elif(args['simulation']['distribution'] == 'uniform'):
+            sim_num = args['simulation']['sim_num']
+            R0_distribution = np.random.uniform(R0-R0_std, R0+R0_std, sim_num)
+            R1_distribution = np.random.uniform(R1-R1_std, R1+R1_std, sim_num)
+            shift_distribution = np.random.randint(shift-shift_std, shift+shift_std, sim_num, dtype=int)
+
+            param_distribution = zip(R0_distribution, R1_distribution, shift_distribution)
+        else:
+            print("{args['simulation']['distribution']} parameter distribution not found!")
+            exit(1)
+
+        print([R0-R0_std, R0+R0_std], [R1-R1_std, R1+R1_std], [shift-shift_std, shift+shift_std])
+        pool = Pool(processes=args['simulation']["threads"])
+        for R0,R1,shift in param_distribution:
             pool.apply_async(run, args=[c_args, R0, R1, shift])
         pool.close()
         pool.join()
@@ -187,10 +198,10 @@ if __name__ == "__main__":
     losses_R0 = []
     agg_charts = []
     param_distribution = []
-    for file in os.listdir(f"log/{args['sim_id']}"):
+    for file in os.listdir(f"log/{args['simulation']['ID']}"):
         # === Read simulation data ===
         #df = pd.read_csv(f"log/2/R0=2.7617185266303697")
-        df = pd.read_csv(f"log/{args['sim_id']}/{file}")
+        df = pd.read_csv(f"log/{args['simulation']['ID']}/{file}")
         R0, R1, R1_shift = file.split('_')
         R0 = float(R0.split('=')[1])
         R1 = float(R1.split('=')[1])
@@ -224,13 +235,13 @@ if __name__ == "__main__":
     print(f"Minimal loss: {loss} [R0 = {R0}]")
 
     # Log for all sims
-    g_truth = county_data["Összesen"].to_numpy()[154-shift:154-shift+args['simulated_days']]
-    d_truth = { }
+    g_truth = county_data["Összesen"].to_numpy()[154-shift:154-shift+args['simulation']['simulated_days']]
+    d_truth = {}
     df = pd.DataFrame(dict([("Ground truth",g_truth)]+ [(get_str(params),data) for params,data in sorted(agg_charts)]))
-    df.to_csv(f"log/helper/{args['sim_id']}_agg.csv")
+    df.to_csv(f"log/helper/{args['simulation']['ID']}_agg.csv")
 
     df = pd.DataFrame(param_distribution)
-    df.to_csv(f"log/helper/{args['sim_id']}_distribution.csv")
+    df.to_csv(f"log/helper/{args['simulation']['ID']}_distribution.csv")
 
     #print(county_data[154:][["Budapest", "Dátum"]])
     # TODO:
