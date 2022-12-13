@@ -34,6 +34,12 @@ def general_plot(df, title, value_names, xy_labels):
             color="black",
         ),
     )
+    fig.update_traces(line=dict(width=1), opacity=.5)
+    for trace in fig['data']: 
+        if (trace['name'] == "Ground truth"):
+            print("Ground truth")
+            trace['line'] = {"width":3, 'color':'red'}
+            trace['opacity'] = 1.0
     return fig
 
 
@@ -130,7 +136,7 @@ def violin_plot(key, sim_name, th):
 
     for v in df[key].unique():
         #go.Violin
-        fig.add_trace(go.Violin(x=df[key][df[key]==v].astype(str), box_visible=True, y=df['loss'][df[key]==v], points="all", name=v,
+        fig.add_trace(go.Violin(x=df[key][df[key]==v].astype(float), box_visible=True, y=df['loss'][df[key]==v].astype(float), points="all", name=v,
                                 meanline_visible=True, opacity=0.6, x0=str(v),
                                 ))
     
