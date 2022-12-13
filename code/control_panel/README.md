@@ -8,7 +8,7 @@ Layout:
 Style:
 * https://dash.plotly.com/external-resources
 
-Exőress: (Line charts, maps and more):
+Express: (Line charts, maps and more):
 * https://plotly.com/python/line-charts/
 * https://plotly.com/python/plotly-express/
 
@@ -21,3 +21,11 @@ https://dash.plotly.com/external-resources
 Examples:
 https://dash.gallery/Portal/
 https://github.com/plotly/dash-sample-apps/blob/main/apps/dash-avs-explorer/app.py
+
+# Issues
+1. Copy yaml file to log folder, and display it with the app.py
+2. District based simulation (losses.py and generate.py should be edited)
+3. Add map to the visualizer
+4. Add age, and country line plots:
+    * The choosable sims change in time, based on the threshold
+    * Ground truth
