@@ -96,7 +96,7 @@ def loss_restrict(df, sim_name, th):
 # Sims
 @app.callback(
     Output('sims-fig', 'figure'),
-    [Input('class-dropdown', 'value'), Input(component_id='loss_th', component_property='value')])
+    [Input('folder-dropdown', 'value'), Input(component_id='loss_th', component_property='value')])
 def sims_fig(sim_name, th):
     df = pd.read_csv(f"log/helper/{sim_name}_agg.csv", index_col=0)
     df = loss_restrict(df, sim_name, th)
@@ -181,45 +181,45 @@ def violin_plot(key, sim_name, th):
 
 @app.callback(
     Output('R0-violin-fig', 'figure'),
-    [Input('class-dropdown', 'value'), Input(component_id='dist_th', component_property='value')])
+    [Input('folder-dropdown', 'value'), Input(component_id='dist_th', component_property='value')])
 def violin_R0(sim_name, th):
     return violin_plot("R0", sim_name, th)
 
 @app.callback(
     Output('R1-violin-fig', 'figure'),
-    [Input('class-dropdown', 'value'), Input(component_id='dist_th', component_property='value')])
+    [Input('folder-dropdown', 'value'), Input(component_id='dist_th', component_property='value')])
 def violin_R1(sim_name, th):
     return violin_plot("R1", sim_name, th)
 
 @app.callback(
     Output('R1_shift-violin-fig', 'figure'),
-    [Input('class-dropdown', 'value'), Input(component_id='dist_th', component_property='value')])
+    [Input('folder-dropdown', 'value'), Input(component_id='dist_th', component_property='value')])
 def violin_R1(sim_name, th):
     return violin_plot("R1_shift", sim_name, th)
 
 # === Histogram ===
 @app.callback(
     Output('R0-hist-fig', 'figure'),
-    [Input('class-dropdown', 'value'), Input(component_id='loss_th', component_property='value')])
+    [Input('folder-dropdown', 'value'), Input(component_id='loss_th', component_property='value')])
 def hist_R0(sim_name, th):
     return param_histogram("R0", sim_name, th)
 
 @app.callback(
     Output('R1-hist-fig', 'figure'),
-    [Input('class-dropdown', 'value'), Input(component_id='loss_th', component_property='value')])
+    [Input('folder-dropdown', 'value'), Input(component_id='loss_th', component_property='value')])
 def hist_R1(sim_name, th):
     return param_histogram("R1", sim_name, th)
 
 
 @app.callback(
     Output('EqualRatio-hist-fig', 'figure'),
-    [Input('class-dropdown', 'value'), Input(component_id='loss_th', component_property='value')])
+    [Input('folder-dropdown', 'value'), Input(component_id='loss_th', component_property='value')])
 def hist_equalRatio(sim_name, th):
     return param_histogram("equal_ratio", sim_name, th)
 
 @app.callback(
     Output('R1Shift-hist-fig', 'figure'),
-    [Input('class-dropdown', 'value'), Input(component_id='loss_th', component_property='value')])
+    [Input('folder-dropdown', 'value'), Input(component_id='loss_th', component_property='value')])
 def hist_R1Shift(sim_name, th):
     return param_histogram("R1_shift", sim_name, th)
 
@@ -260,7 +260,7 @@ app.layout = html.Div(children=[
         html.P('Rényi Network Epidemic Research Group',  style={"text-align":"center"}),
         html.Img(src="assets/covid19.png"),
         html.Label("Simulations", className='dropdown-labels'),
-        dcc.Dropdown(multi=False, className='dropdown', id='class-dropdown',
+        dcc.Dropdown(multi=False, className='dropdown', id='folder-dropdown',
                      options=create_dropdown_options(get_folders()),
                      value=get_folders()[0]),
         html.Div(id='drop-info'),
