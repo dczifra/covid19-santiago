@@ -29,3 +29,4 @@ https://github.com/plotly/dash-sample-apps/blob/main/apps/dash-avs-explorer/app.
 4. Add age, and country line plots:
     * The choosable sims change in time, based on the threshold
     * Ground truth
+5. Remove hand-crafted variables from loss (day shifts etc.)

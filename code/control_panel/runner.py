@@ -17,11 +17,11 @@ def read_yaml(filename="input.yaml"):
         args = yaml.load(file, Loader=yaml.FullLoader)
     return args
 
-def run(c_args, R0, R1, shift):
+def run(c_args, R0, R1, shift, ind):
     c_args["--R0"]=R0
     c_args["--R1"]=R1
     c_args["--second_wave"] = shift
-    c_args["--out"]=c_args["--out"]+f"R0={R0}_R1={R1}_shift={shift}"
+    c_args["--out"]=c_args["--out"]+f"R0={R0}_R1={R1}_shift={shift}_id={ind}"
 
     str_args = [str(item) for pair in c_args.items() for item in pair]
     p = Popen([ "../bin/main"] + str_args,
@@ -181,8 +181,8 @@ if __name__ == "__main__":
 
         print([R0-R0_std, R0+R0_std], [R1-R1_std, R1+R1_std], [shift-shift_std, shift+shift_std])
         pool = Pool(processes=args['simulation']["threads"])
-        for R0,R1,shift in param_distribution:
-            pool.apply_async(run, args=[c_args, R0, R1, shift])
+        for ind,(R0,R1,shift) in enumerate(param_distribution):
+            pool.apply_async(run, args=[c_args, R0, R1, shift, ind])
         pool.close()
         pool.join()
         print('[main] Simulation ended')
@@ -202,10 +202,11 @@ if __name__ == "__main__":
         # === Read simulation data ===
         #df = pd.read_csv(f"log/2/R0=2.7617185266303697")
         df = pd.read_csv(f"log/{args['simulation']['ID']}/{file}")
-        R0, R1, R1_shift = file.split('_')
+        R0, R1, R1_shift, ind = file.split('_')
         R0 = float(R0.split('=')[1])
         R1 = float(R1.split('=')[1])
         R1_shift = float(R1_shift.split('=')[1])
+        ind = float(ind.split('=')[1])
         #print(R0, R1, R1_shift)
 
         # LOG: Deaths
@@ -225,13 +226,13 @@ if __name__ == "__main__":
         sim_aggregated = np.sum([chart for label,chart in c_charts], axis=0)
 
         loss,equal_ratio, shift = get_optimal_shift(county_data, c_charts)
-        print(loss, equal_ratio, shift)
-        losses_R0.append((loss, R0, R1, R1_shift, shift))
+        print(loss, equal_ratio, shift, ind)
+        losses_R0.append((loss, R0, R1, R1_shift, shift, ind))
 
-        agg_charts.append(((R0, R1, R1_shift), equal_ratio*sim_aggregated))
-        param_distribution.append({"R0":R0, "R1":R1, "R1_shift":R1_shift, "loss":loss, "equal_ratio":equal_ratio, "shift":shift})
+        agg_charts.append(((R0, R1, R1_shift, ind), equal_ratio*sim_aggregated))
+        param_distribution.append({"R0":R0, "R1":R1, "R1_shift":R1_shift, "loss":loss, "equal_ratio":equal_ratio, "shift":shift, "id":ind})
 
-    loss, R0, R1, R1_shift, shift= min(losses_R0)
+    loss, R0, R1, R1_shift, shift, ind= min(losses_R0)
     print(f"Minimal loss: {loss} [R0 = {R0}]")
 
     # Log for all sims

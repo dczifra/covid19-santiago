@@ -2,7 +2,7 @@
 # === Simulation parameters ===
 simulation:
   # Name/ID of simulation
-  ID: sim_best_2
+  ID: sim_std_1
   # Number of simulations
   sim_num: 500
   # Number of CPU cores
@@ -18,16 +18,16 @@ simulation:
 first_wave:
   R0:
     val: 2.25
-    std: 0.01
+    std: 0.00
     num: 5
 second_wave:
   time:
-    val: 120
-    std: 3
+    val: 121
+    std: 0
     num: 5
   R1:
     val: 5.85
-    std: 0.01
+    std: 0.00
     num: 5
 age_groups: 8
 seasonality: 0.25

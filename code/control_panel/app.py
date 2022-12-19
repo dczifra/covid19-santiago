@@ -37,7 +37,6 @@ def general_plot(df, title, value_names, xy_labels):
     fig.update_traces(line=dict(width=1), opacity=.5)
     for trace in fig['data']: 
         if (trace['name'] == "Ground truth"):
-            print("Ground truth")
             trace['line'] = {"width":3, 'color':'red'}
             trace['opacity'] = 1.0
     return fig
