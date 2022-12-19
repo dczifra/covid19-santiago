@@ -16,6 +16,7 @@ struct Args{
     double R1 = 2.6;
     double r1 = 1.0;
     double r2 = 1.0;
+    int seed = 0;
     unsigned int maxT = 175;
     double c = 0.0;
     int second_wave = -1;
@@ -35,6 +36,7 @@ void read_args(int argc, char* argv[], Args& args){
         else if(act_param=="--R1") args.R1 = std::stod(argv[++i]);
         else if(act_param=="--r1") args.r1 = std::stod(argv[++i]);
         else if(act_param=="--r2") args.r2 = std::stod(argv[++i]);
+        else if(act_param=="--seed") args.seed = std::stoi(argv[++i]);
         else if(act_param=="--maxT") args.maxT = std::stoi(argv[++i]);
         else if(act_param=="--c") args.c = std::stod(argv[++i]);
         else if(act_param=="--second_wave") args.second_wave = std::stoi(argv[++i]);
@@ -187,6 +189,7 @@ int main(int argc, char *argv[])
     Args args;
     read_args(argc, argv, args);
     Parser parser = Parser(args.config_folder);
+    srand(args.seed);
 
     // number of comunas, age groups, and simulations per parameters
     int Npop = parser.parse_Npop();

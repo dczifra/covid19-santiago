@@ -30,3 +30,5 @@ https://github.com/plotly/dash-sample-apps/blob/main/apps/dash-avs-explorer/app.
     * The choosable sims change in time, based on the threshold
     * Ground truth
 5. Remove hand-crafted variables from loss (day shifts etc.)
+6. Add data repo in server /home/shaderd/KSH, and make a variable for the repo, which points to this folder
+7. Set random seed for each C++ run (the set can be the ID)

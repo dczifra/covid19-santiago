@@ -20,6 +20,7 @@ def read_yaml(filename="input.yaml"):
 def run(c_args, R0, R1, shift, ind):
     c_args["--R0"]=R0
     c_args["--R1"]=R1
+    #c_args["--seed"]=ind
     c_args["--second_wave"] = shift
     c_args["--out"]=c_args["--out"]+f"R0={R0}_R1={R1}_shift={shift}_id={ind}"
 
@@ -148,6 +149,7 @@ if __name__ == "__main__":
             "--config": args['network_config_folder'],
             "--maxT": args['simulation']['simulated_days'],
             "--c": args['seasonality'],
+            "--seed":0,
         }
 
         R0 = args['first_wave']['R0']['val']
